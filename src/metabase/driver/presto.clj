@@ -163,14 +163,14 @@
   (hsql/call :date_add (hx/literal unit) amount :%now))
 
 (defn- describe-schema [{{:keys [catalog] :as details} :details} {:keys [schema]}]
-  (let [sql            (str "SHOW TABLES FROM " (quote+combine-names catalog schema))
+  (let [sql            (str "SELECT table_name FROM information_schema.tables WHERE table_catalog = '" catalog "' AND table_schema = '" schema "' AND table_name NOT LIKE '%\\_v' ESCAPE '\\'")
         {:keys [rows]} (execute-presto-query! details sql)
         tables         (map first rows)]
     (set (for [name tables]
            {:name name, :schema schema}))))
 
 (defn- describe-database [{{:keys [catalog] :as details} :details :as database}]
-  (let [sql            (str "SHOW SCHEMAS FROM " (quote-name catalog))
+  (let [sql            (str "SHOW SCHEMAS FROM " (quote-name catalog) " LIKE 'ad_platform'")
         {:keys [rows]} (execute-presto-query! details sql)
         schemas        (remove #{"information_schema"} (map first rows))] ; inspecting "information_schema" breaks weirdly
     {:tables (apply set/union (for [name schemas]
@@ -357,7 +357,8 @@
           :connection-details->spec  (constantly nil)
           :current-datetime-fn       (constantly :%now)
           :date                      (u/drop-first-arg date)
-          :excluded-schemas          (constantly #{"information_schema"})
+          :excluded-schemas          (constantly #{"information_schema" "11st" "share_mns" "svc_barrel" "svc_galleon" "share_cba" "ocb"})
+          :included-schemas          (constantly #{"ad_platform" "dmp" "svc_ds_dmp"})
           :quote-style               (constantly :ansi)
           :stddev-fn                 (constantly :stddev_samp)
           :string-length-fn          (u/drop-first-arg string-length-fn)
